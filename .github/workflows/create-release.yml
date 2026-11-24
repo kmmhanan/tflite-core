@@ -1,3 +1,6 @@
+# Creates the v<version> tag and the GitHub Release for the version in pubspec.yaml.
+# The tag push is what starts publish.yml, so the tag is pushed with RELEASE_TOKEN (a personal access token):
+# pushes made with the default GITHUB_TOKEN never start other workflows.
 name: Create Release
 run-name: Create Release for v${{ inputs.version }}
 
@@ -26,77 +29,49 @@ jobs:
           echo "Run this workflow from the main branch."
           exit 1
 
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: main
           token: ${{ secrets.RELEASE_TOKEN }}
           fetch-depth: 0
 
-      - name: Validate release version
-        id: version
+      - name: Check the package name
         shell: bash
-        env:
-          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           package_name=$(sed -n 's/^name: *//p' pubspec.yaml | tr -d "\"'")
-          package_version=$(sed -n 's/^version: *//p' pubspec.yaml | tr -d "\"'")
           if [[ "$package_name" != "tflite_core" ]]; then
             echo "Expected package name 'tflite_core', got '$package_name'."
             exit 1
           fi
-          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid package version: '$package_version'."
+
+      # Reads the version from pubspec.yaml and compares it with the latest v* tag (full semver ordering)
+      - name: Check version
+        id: version
+        uses: KMM-ZONE/open-flows/actions/check-version@v1
+        with:
+          version-file: pubspec.yaml
+
+      - name: The requested version must match pubspec.yaml
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [[ "$REQUESTED_VERSION" != "$PACKAGE_VERSION" ]]; then
+            echo "Requested version '$REQUESTED_VERSION' does not match pubspec.yaml version '$PACKAGE_VERSION'."
             exit 1
           fi
-          if [[ "$RELEASE_VERSION" != "$package_version" ]]; then
-            echo "Requested version '$RELEASE_VERSION' does not match pubspec.yaml version '$package_version'."
-            exit 1
-          fi
-          version_gt() {
-            local candidate="${1%%+*}"
-            local previous="${2%%+*}"
-            local candidate_prerelease=""
-            local previous_prerelease=""
-            if [[ "$candidate" == *-* ]]; then
-              candidate_prerelease="${candidate#*-}"
-              candidate="${candidate%%-*}"
-            fi
-            if [[ "$previous" == *-* ]]; then
-              previous_prerelease="${previous#*-}"
-              previous="${previous%%-*}"
-            fi
-            local candidate_major candidate_minor candidate_patch
-            local previous_major previous_minor previous_patch
-            IFS=. read -r candidate_major candidate_minor candidate_patch <<< "$candidate"
-            IFS=. read -r previous_major previous_minor previous_patch <<< "$previous"
-            if ((10#$candidate_major != 10#$previous_major)); then
-              ((10#$candidate_major > 10#$previous_major))
-              return
-            fi
-            if ((10#$candidate_minor != 10#$previous_minor)); then
-              ((10#$candidate_minor > 10#$previous_minor))
-              return
-            fi
-            if ((10#$candidate_patch != 10#$previous_patch)); then
-              ((10#$candidate_patch > 10#$previous_patch))
-              return
-            fi
-            [[ -n "$previous_prerelease" && -z "$candidate_prerelease" ]]
-          }
-          tag="v$package_version"
-          latest_version=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n 1 | sed 's/^v//')
-          if [[ -n "$latest_version" ]]; then
-            if ! version_gt "$package_version" "$latest_version"; then
-              echo "Skipping release: '$package_version' is not newer than the latest release '$latest_version'."
-              echo "release=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          echo "release=true" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to release
+        if: steps.version.outputs.bumped != 'true'
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+          LATEST_VERSION: ${{ steps.version.outputs.latest-version }}
+          REASON: ${{ steps.version.outputs.reason }}
+        run: |
+          echo "Skipping release: '$PACKAGE_VERSION' is not newer than the latest release '${LATEST_VERSION:-none}' ($REASON)."
 
       - name: Create and push version tag
-        if: steps.version.outputs.release == 'true'
+        if: steps.version.outputs.bumped == 'true'
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
@@ -106,8 +81,10 @@ jobs:
           git push origin "$RELEASE_TAG"
 
       - name: Create GitHub Release
-        if: steps.version.outputs.release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        run: gh release create "$RELEASE_TAG" --verify-tag --title "tflite_core $RELEASE_TAG" --generate-notes
+        if: steps.version.outputs.bumped == 'true'
+        uses: KMM-ZONE/open-flows/actions/github-release@v1
+        with:
+          tag: ${{ steps.version.outputs.tag }}
+          version: ${{ steps.version.outputs.version }}
+          title: tflite_core ${{ steps.version.outputs.tag }}
+          token: ${{ secrets.RELEASE_TOKEN }}

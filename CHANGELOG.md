@@ -1,3 +1,6 @@
+## 0.12.12 (November 25, 2026)
+- Workflows updates.
+
 ## 0.12.11 (October 16, 2026)
 - Restored the standard versioned macOS framework layout, with `Info.plist` under `Versions/A/Resources` as required by Xcode.
 - Moved the macOS framework `Info.plist` to the framework root; corrected to the required versioned location in 0.12.13.
