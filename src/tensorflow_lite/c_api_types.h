@@ -80,8 +80,8 @@ typedef enum TfLiteStatus {
 
   // Generally referring to invocation cancelled by the user.
   // See `interpreter::Cancel`.
-  // TODO(b/194915839): Implement `interpreter::Cancel`.
-  // TODO(b/250636993): Cancellation triggered by `SetCancellationFunction`
+  // todo(b/194915839): Implement `interpreter::Cancel`.
+  // todo(b/250636993): Cancellation triggered by `SetCancellationFunction`
   // should also return this status code.
   kTfLiteCancelled = 8,
 } TfLiteStatus;

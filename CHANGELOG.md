@@ -1,5 +1,5 @@
 ## 0.12.13 (November 26, 2026)
-- `flutter-ci` pipeline updated.
+- `flutter-ci` pipeline updated and some other minor corrections made.
 
 ## 0.12.12 (November 25, 2026)
 - Workflows updates.

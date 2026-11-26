@@ -524,7 +524,7 @@ typedef struct TfLiteNode {
 // - name
 // - sparsity
 typedef struct TfLiteTensor {
-  // TODO(b/155784997): Consider consolidating these quantization fields:
+  // todo(b/155784997): Consider consolidating these quantization fields:
   // Quantization information. Replaces params field above.
   TfLiteQuantization quantization;
 
@@ -595,7 +595,7 @@ typedef struct TfLiteNode {
 
 // Light-weight tensor struct for TF Micro runtime. Provides the minimal amount
 // of information required for a kernel to run during TfLiteRegistration::Eval.
-// TODO(b/160955687): Move this field into TF_LITE_STATIC_MEMORY when TFLM
+// todo(b/160955687): Move this field into TF_LITE_STATIC_MEMORY when TFLM
 // builds with this flag by default internally.
 typedef struct TfLiteEvalTensor {
   // A union of data pointers. The appropriate type should be used for a typed
@@ -826,7 +826,7 @@ typedef struct TfLiteContext {
   // }
   //
   // NOTE: The context owns the memory referenced by partition_params_array. It
-  // will be cleared with another call to PreviewDelegateParitioning, or after
+  // will be cleared with another call to PreviewDelegatePartitioning, or after
   // TfLiteDelegateParams::Prepare returns.
   //
   // WARNING: This is an experimental interface that is subject to change.
